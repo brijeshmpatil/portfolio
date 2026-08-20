@@ -1,10 +1,7 @@
 import { defineProject } from "@/lib/types";
 
-// TODO(brijesh): confirm the 1GB+ chunked upload pipeline belongs to this build.
-// The custom-print product configurators here are repo-verified; the upload
-// pipeline is attributed from your resume plus the fact that this is the only
-// storefront in the set that takes customer artwork. Correct me if it shipped
-// on a different client and I will move the case study.
+// Attribution of the 1GB+ chunked upload pipeline to this build is confirmed
+// by Brijesh (Aug 2026), not inferred.
 export const stickersBanners = defineProject({
   slug: "stickers-banners",
   name: "Stickers & Banners",
