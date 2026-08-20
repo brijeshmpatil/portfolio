@@ -1,26 +1,177 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   Design tokens — single source of truth. Never hardcode a colour or size
+   anywhere else in the codebase; reference these.
+   --------------------------------------------------------------------------- */
+@theme {
+  /* Surfaces — near-black, cool-shifted so the amber accent reads warm */
+  --color-void: #08090a;
+  --color-base: #0d0f11;
+  --color-raised: #14171a;
+  --color-line: #1f2429;
+  --color-line-strong: #2c333a;
+
+  /* Text */
+  --color-ink: #edede9;
+  --color-ink-muted: #9aa3ab;
+  --color-ink-faint: #5d666e;
+
+  /* Accent — phosphor amber. Instrument/HUD association, not the usual
+     dev-portfolio lime or cyan. */
+  --color-signal: #ffae35;
+  --color-signal-dim: #a8722145;
+
+  /* Data-viz secondary, used only in perf charts */
+  --color-cool: #6e8bff;
+  --color-bad: #ff5c5c;
+
+  /* Type */
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
+
+  /* Fluid display scale — clamp so nothing needs a breakpoint override */
+  --text-mega: clamp(3.5rem, 13vw, 13rem);
+  --text-display: clamp(2.5rem, 7.5vw, 6.5rem);
+  --text-title: clamp(1.75rem, 4vw, 3.25rem);
+  --text-lead: clamp(1.0625rem, 1.5vw, 1.375rem);
+
+  /* Motion — shared easings so timelines feel like one system */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* Breakpoints mirroring the ones used across his Shopify work */
+  --breakpoint-sm: 390px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1550px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html {
+    /* ScrollSmoother drives scrolling; native smooth would fight it */
+    scroll-behavior: auto;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  /* Selection picks up the accent so even trivial interactions feel authored */
+  ::selection {
+    background-color: var(--color-signal);
+    color: var(--color-void);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Only hide the outline for pointer users — keyboard always keeps it */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  img,
+  video,
+  canvas {
+    max-width: 100%;
+    display: block;
+  }
+
+  /* Kill every transform/scroll animation for reduced-motion users. GSAP
+     timelines are separately neutralised in lib/gsap.ts. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Mono eyebrow label used above most section headings */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /* Page gutter. One rule, so horizontal rhythm never drifts between sections. */
+  .gutter {
+    padding-inline: 1.25rem;
+  }
+  @media (width >= 768px) {
+    .gutter {
+      padding-inline: 2.5rem;
+    }
+  }
+  @media (width >= 1280px) {
+    .gutter {
+      padding-inline: 4rem;
+    }
+  }
+
+  .hairline {
+    border-top: 1px solid var(--color-line);
+  }
+}
+
+@layer utilities {
+  /* Text hidden visually but available to screen readers */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Applied to elements a GSAP timeline will reveal, so there is no flash of
+     final state before hydration. Removed by the animation itself. */
+  .will-reveal {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .will-reveal {
+      opacity: 1;
+    }
+  }
 }
