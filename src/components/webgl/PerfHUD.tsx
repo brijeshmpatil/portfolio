@@ -37,12 +37,12 @@ export function PerfHUD({ particles, tier }: Props) {
   useEffect(() => {
     if (!open) return;
     let queued = 0;
-    return onHeroProgress((value) => {
+    return onHeroProgress(({ progress }) => {
       // Throttle to animation frames; scroll fires far more often than this
       // needs to update.
       if (queued) return;
       queued = requestAnimationFrame(() => {
-        setMorph(value);
+        setMorph(progress);
         queued = 0;
       });
     });

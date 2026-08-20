@@ -26,9 +26,9 @@
  * assemble → hold → disperse → hold, which is a sequence rather than a swipe.
  */
 const PHASES = [
-  { until: 0.34, from: 0, to: 1 }, // scatter assembles into the wordmark
-  { until: 0.56, from: 1, to: 1 }, // hold: the wordmark is readable here
-  { until: 0.86, from: 1, to: 2 }, // wordmark breaks into the bars
+  { until: 0.32, from: 0, to: 1 }, // scatter assembles into the wordmark
+  { until: 0.46, from: 1, to: 1 }, // hold: the wordmark is readable here
+  { until: 0.82, from: 1, to: 2 }, // wordmark breaks into the bars
   { until: 1.0, from: 2, to: 2 }, // hold: bars, handing off to the work rail
 ] as const;
 
@@ -54,25 +54,41 @@ export function mapHeroProgress(scroll: number): number {
   return 2;
 }
 
-type Listener = (progress: number) => void;
+export type HeroScroll = {
+  /** Morph progress, 0 → 2, with plateaus. Drives uProgress. */
+  readonly progress: number;
+  /** Raw linear scroll through the runway, 0 → 1. Never plateaus. */
+  readonly scroll: number;
+};
 
-let progress = 0;
+type Listener = (value: HeroScroll) => void;
+
+/**
+ * Both values are published, and the second one matters more than it looks.
+ *
+ * `progress` deliberately holds still on its plateaus so the wordmark can be
+ * read. The side effect is a stretch of scrolling where the shader receives an
+ * identical value every frame and nothing on screen changes — which reads as the
+ * page having frozen. `scroll` keeps advancing linearly throughout, so the
+ * renderer always has something to respond to and scrolling never feels dead.
+ */
+let current: HeroScroll = { progress: 0, scroll: 0 };
 const listeners = new Set<Listener>();
 
-export function setHeroProgress(next: number): void {
-  progress = next;
-  for (const listener of listeners) listener(next);
+export function setHeroProgress(progress: number, scroll: number): void {
+  current = { progress, scroll };
+  for (const listener of listeners) listener(current);
 }
 
-export function getHeroProgress(): number {
-  return progress;
+export function getHeroProgress(): HeroScroll {
+  return current;
 }
 
-/** Subscribe to progress changes. Returns an unsubscribe function. */
+/** Subscribe to scroll changes. Returns an unsubscribe function. */
 export function onHeroProgress(listener: Listener): () => void {
   listeners.add(listener);
   // Push the current value immediately, so a late subscriber (the deferred
   // canvas) is not stuck at 0 if the user has already scrolled.
-  listener(progress);
+  listener(current);
   return () => listeners.delete(listener);
 }

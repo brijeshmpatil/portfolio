@@ -29,7 +29,7 @@ export function AboutTeaser() {
           <p className="pt-4">
             <Link
               href="/about"
-              className="font-mono text-[0.6875rem] tracking-[0.14em] uppercase text-ink underline decoration-signal decoration-1 underline-offset-8 transition-colors hover:text-signal"
+              className="link-wipe font-mono text-[0.6875rem] tracking-[0.14em] uppercase text-ink transition-colors hover:text-signal"
             >
               More about how I work
             </Link>

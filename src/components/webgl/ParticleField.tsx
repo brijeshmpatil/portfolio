@@ -29,6 +29,8 @@ export function ParticleField({ count, progress, size = 0.028 }: Props) {
   const controlled = progress !== undefined;
   const points = useRef<THREE.Points>(null);
   const material = useRef<THREE.ShaderMaterial>(null);
+  /** Raw linear scroll, 0 → 1. Drives motion that must never stall. */
+  const scrollRef = useRef(0);
   const { viewport, invalidate } = useThree();
 
   // Target buffers are built once. `count` only changes if the device tier
@@ -88,10 +90,13 @@ export function ParticleField({ count, progress, size = 0.028 }: Props) {
     // hero's scroll position fight the playground's slider.
     const unsubscribe = controlled
       ? () => {}
-      : onHeroProgress((value) => {
+      : onHeroProgress(({ progress, scroll }) => {
           const uniforms = material.current?.uniforms;
           if (!uniforms) return;
-          uniforms.uProgress.value = value;
+          uniforms.uProgress.value = progress;
+          // Raw scroll never plateaus, so the group transform below always has
+          // something to move even while uProgress is deliberately holding.
+          scrollRef.current = scroll;
           invalidate();
         });
 
@@ -159,7 +164,16 @@ export function ParticleField({ count, progress, size = 0.028 }: Props) {
     target.y += (pointer.y * viewport.height * 0.5 - target.y) * damping;
 
     if (points.current) {
-      points.current.rotation.z = Math.sin(clock.elapsedTime * 0.05) * 0.02;
+      /* Two motions, deliberately. The time-based wobble keeps a completely
+         still page from looking frozen. The scroll-based push and roll mean that
+         every scroll delta produces visible movement — including across the
+         uProgress plateaus, which is what stopped the hold from reading as the
+         page having locked up. Eased so the group is not obviously sliding. */
+      const scroll = controlled ? 0 : scrollRef.current;
+      points.current.rotation.z =
+        Math.sin(clock.elapsedTime * 0.05) * 0.02 + scroll * 0.09;
+      points.current.position.z = -scroll * 1.4;
+      points.current.position.y = scroll * 0.35;
     }
   });
   /* eslint-enable react-hooks/immutability */

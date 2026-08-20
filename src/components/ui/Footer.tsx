@@ -28,7 +28,7 @@ export function Footer() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className="text-sm text-ink-muted transition-colors hover:text-signal"
+                  className="link-wipe text-sm text-ink-muted transition-colors hover:text-signal"
                 >
                   {item.label}
                 </Link>
@@ -46,7 +46,7 @@ export function Footer() {
                   href={social.href}
                   target={social.href.startsWith("mailto:") ? undefined : "_blank"}
                   rel="noreferrer noopener"
-                  className="text-sm text-ink-muted transition-colors hover:text-signal"
+                  className="link-wipe text-sm text-ink-muted transition-colors hover:text-signal"
                 >
                   {social.label}
                 </a>

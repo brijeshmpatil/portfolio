@@ -9,7 +9,11 @@ type Props = {
   readonly children: ReactNode;
   readonly className?: string;
   readonly external?: boolean;
-  /** Maximum pixels of pull toward the cursor. */
+  /**
+   * Maximum pixels of pull toward the cursor. The default was 12, which is
+   * genuinely imperceptible on display-scale type — it measured as a 9px
+   * translate on the contact email and read as the effect being broken.
+   */
   readonly strength?: number;
 };
 
@@ -26,7 +30,7 @@ export function MagneticLink({
   children,
   className,
   external = false,
-  strength = 12,
+  strength = 26,
 }: Props) {
   const anchor = useRef<HTMLAnchorElement>(null);
 

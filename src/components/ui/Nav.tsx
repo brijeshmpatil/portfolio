@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MobileMenu } from "@/components/ui/MobileMenu";
+import { SwapLink } from "@/components/ui/SwapLink";
 import { NAV, SITE } from "@/lib/site";
 
 /**
@@ -97,16 +98,16 @@ export function Nav() {
                   pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <li key={item.href}>
-                    <Link
+                    <SwapLink
                       href={item.href}
-                      aria-current={active ? "page" : undefined}
+                      ariaCurrent={active ? "page" : undefined}
                       className={[
-                        "block px-3 py-2 font-mono text-[0.6875rem] tracking-[0.14em] uppercase transition-colors",
-                        active ? "text-signal" : "text-ink-muted hover:text-ink",
+                        "block px-3 py-2 font-mono text-[0.6875rem] tracking-[0.14em] uppercase",
+                        active ? "text-signal" : "text-ink-muted",
                       ].join(" ")}
                     >
                       {item.label}
-                    </Link>
+                    </SwapLink>
                   </li>
                 );
               })}

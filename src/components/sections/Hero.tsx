@@ -55,7 +55,8 @@ export function Hero() {
           end: "bottom bottom",
           scrub: 0.45,
           invalidateOnRefresh: true,
-          onUpdate: (self) => setHeroProgress(mapHeroProgress(self.progress)),
+          onUpdate: (self) =>
+            setHeroProgress(mapHeroProgress(self.progress), self.progress),
         },
       });
 
@@ -76,7 +77,7 @@ export function Hero() {
       return () => {
         timeline.scrollTrigger?.kill();
         timeline.kill();
-        setHeroProgress(0);
+        setHeroProgress(0, 0);
       };
     },
     { scope: section },

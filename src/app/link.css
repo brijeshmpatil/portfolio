@@ -1,0 +1,92 @@
+/* ---------------------------------------------------------------------------
+   Link hover treatments.
+
+   Deliberately CSS, not GSAP. A hover can fire hundreds of times as a pointer
+   crosses a nav, and every one of those would build a tween on the main thread.
+   These animate transform and opacity only, so the compositor handles them and
+   the main thread is never involved — which is also why they stay smooth while
+   the WebGL hero is running.
+   --------------------------------------------------------------------------- */
+
+@layer components {
+  /* Underline that wipes in from the left and out to the right, so entering and
+     leaving are visibly different gestures rather than the same one reversed. */
+  .link-wipe {
+    position: relative;
+    display: inline-block;
+    text-decoration: none;
+  }
+
+  .link-wipe::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -0.15em;
+    width: 100%;
+    height: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.45s var(--ease-out-expo);
+  }
+
+  .link-wipe:hover::after,
+  .link-wipe:focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  /* Vertical swap: the label slides up and out while a copy rises to take its
+     place. The duplicate is aria-hidden in markup, so it is never read twice. */
+  .link-swap {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+  }
+
+  .link-swap__layer {
+    display: block;
+    transition: transform 0.5s var(--ease-out-expo);
+  }
+
+  .link-swap__layer--ghost {
+    position: absolute;
+    inset: 0;
+    transform: translateY(105%);
+    color: var(--color-signal);
+  }
+
+  .link-swap:hover .link-swap__layer,
+  .link-swap:focus-visible .link-swap__layer {
+    transform: translateY(-105%);
+  }
+
+  .link-swap:hover .link-swap__layer--ghost,
+  .link-swap:focus-visible .link-swap__layer--ghost {
+    transform: translateY(0);
+  }
+
+  /* Reduced motion keeps the affordance but drops the movement: the underline
+     appears without wiping, and the swap is replaced by a colour change. */
+  @media (prefers-reduced-motion: reduce) {
+    .link-wipe::after {
+      transition: none;
+    }
+
+    .link-swap__layer,
+    .link-swap__layer--ghost {
+      transition: none;
+    }
+
+    .link-swap__layer--ghost {
+      display: none;
+    }
+
+    .link-swap:hover .link-swap__layer,
+    .link-swap:focus-visible .link-swap__layer {
+      transform: none;
+      color: var(--color-signal);
+    }
+  }
+}

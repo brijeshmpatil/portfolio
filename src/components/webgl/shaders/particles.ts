@@ -175,11 +175,14 @@ varying float vAlpha;
 varying float vHeat;
 
 void main() {
-  // Round, soft-edged point. Discarding outside the disc is cheaper than
-  // sampling a texture and keeps the payload at zero bytes.
+  /* Round, soft-edged point, with no texture — zero bytes of payload.
+     Deliberately no 'discard'. Discard forces a fragment shader to be treated as
+     potentially side-effecting and disables some early-out paths, which is a
+     measurable cost on tile-based GPUs like Apple's, exactly where this runs.
+     Letting alpha fall to zero instead is free under additive blending: a
+     contribution of zero changes nothing in the framebuffer. */
   vec2 uv = gl_PointCoord - 0.5;
   float d = dot(uv, uv);
-  if (d > 0.25) discard;
 
   float falloff = 1.0 - smoothstep(0.0, 0.25, d);
   vec3 color = mix(uColorDrift, uColorLocked, vHeat);

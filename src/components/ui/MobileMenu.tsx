@@ -112,7 +112,12 @@ export function MobileMenu({ open, onClose, pathname }: Props) {
                   <span className="font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint">
                     0{index + 1}
                   </span>
-                  {item.label}
+                  <span className="link-swap">
+                    <span className="link-swap__layer">{item.label}</span>
+                    <span aria-hidden="true" className="link-swap__layer link-swap__layer--ghost">
+                      {item.label}
+                    </span>
+                  </span>
                 </Link>
               </li>
             );

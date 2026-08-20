@@ -25,7 +25,7 @@ export function SelectedWork() {
 
             <Link
               href="/work"
-              className="font-mono text-[0.6875rem] tracking-[0.14em] uppercase text-ink-muted underline decoration-line-strong decoration-1 underline-offset-8 transition-colors hover:text-signal"
+              className="link-wipe font-mono text-[0.6875rem] tracking-[0.14em] uppercase text-ink-muted transition-colors hover:text-signal"
             >
               All {PROJECTS.length} projects
             </Link>
