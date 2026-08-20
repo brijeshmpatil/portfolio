@@ -13,7 +13,7 @@ import { gsap, prefersReducedMotion } from "@/lib/gsap";
  * function receiving that object could read `.current` during render. Three
  * explicit JSX branches are more code and no cleverness, which is the point.
  */
-type Tag = "div" | "section" | "article";
+type Tag = "div" | "section" | "article" | "li";
 
 type Props = {
   readonly children: ReactNode;
@@ -41,7 +41,7 @@ export function Reveal({
   delay = 0,
   stagger = false,
 }: Props) {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
@@ -69,13 +69,15 @@ export function Reveal({
     { scope: root },
   );
 
-  // Semantic elements share HTMLElement rather than a specific interface, so
-  // the div-typed ref is widened for those branches.
-  const wide = root as RefObject<HTMLElement | null>;
+  /* One HTMLElement-typed ref serves every branch. Each concrete tag wants its
+     own element interface (HTMLDivElement, HTMLLIElement, …), so the ref is
+     narrowed at the point of use — the alternative is a separate ref per branch,
+     which is worse for no benefit since only one branch ever renders. */
+  const as_ = <T extends HTMLElement>() => root as RefObject<T | null>;
 
   if (as === "article") {
     return (
-      <article ref={wide} className={className}>
+      <article ref={as_<HTMLElement>()} className={className}>
         {children}
       </article>
     );
@@ -83,14 +85,24 @@ export function Reveal({
 
   if (as === "section") {
     return (
-      <section ref={wide} className={className}>
+      <section ref={as_<HTMLElement>()} className={className}>
         {children}
       </section>
     );
   }
 
+  // An ol/ul may only directly contain li, so a list item cannot be wrapped in
+  // a reveal div — the reveal has to *be* the li.
+  if (as === "li") {
+    return (
+      <li ref={as_<HTMLLIElement>()} className={className}>
+        {children}
+      </li>
+    );
+  }
+
   return (
-    <div ref={root} className={className}>
+    <div ref={as_<HTMLDivElement>()} className={className}>
       {children}
     </div>
   );

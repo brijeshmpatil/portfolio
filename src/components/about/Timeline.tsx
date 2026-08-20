@@ -8,7 +8,7 @@ export function Timeline() {
       {EXPERIENCE.map((role) => (
         <Reveal
           key={`${role.title}-${role.from}`}
-          as="article"
+          as="li"
           className="hairline grid gap-6 py-12 md:grid-cols-[1fr_2fr] md:gap-16"
         >
           <div>

@@ -90,10 +90,11 @@ export function WebVitals() {
                   ? Math.round(reading.value)
                   : reading.value.toFixed(3)}
                 <span className="text-sm">{reading.unit}</span>
+                {/* Inside the dd — a dl group may not contain a paragraph */}
+                <span className="mt-1 block font-mono text-[0.5625rem] tracking-[0.12em] uppercase text-ink-faint">
+                  good is {reading.good}
+                </span>
               </dd>
-              <p className="mt-1 font-mono text-[0.5625rem] tracking-[0.12em] uppercase text-ink-faint">
-                good is {reading.good}
-              </p>
             </div>
           ))}
         </dl>

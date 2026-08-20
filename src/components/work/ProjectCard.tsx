@@ -51,17 +51,20 @@ export function ProjectCard({ project, fixedWidth = false }: Props) {
         {project.summary}
       </p>
 
+      {/* A dl group may only contain dt/dd (plus div wrappers) — no stray
+          paragraphs. The label is the dt and carries its own styling, with
+          flex-col-reverse putting the value above it visually while keeping dt
+          before dd in the DOM. */}
       {project.metrics.length > 0 && (
         <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
           {project.metrics.slice(0, 3).map((metric) => (
-            <div key={metric.label}>
-              <dt className="sr-only">{metric.label}</dt>
+            <div key={metric.label} className="flex flex-col-reverse gap-0.5">
+              <dt className="font-mono text-[0.5625rem] tracking-[0.12em] uppercase text-ink-faint">
+                {metric.label}
+              </dt>
               <dd className="font-mono text-lg text-signal tabular-nums">
                 {metric.value}
               </dd>
-              <p className="mt-0.5 font-mono text-[0.5625rem] tracking-[0.12em] uppercase text-ink-faint">
-                {metric.label}
-              </p>
             </div>
           ))}
         </dl>

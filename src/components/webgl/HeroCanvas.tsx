@@ -58,14 +58,47 @@ export function HeroCanvas() {
   useEffect(() => {
     if (tier === "off") return;
 
+    let idle = 0;
+    let settled = false;
+
     // requestIdleCallback is not in Safari; a timeout is a fine substitute
-    // because either way we are explicitly yielding past first paint.
+    // because either way we are explicitly yielding.
     const schedule =
       window.requestIdleCallback ?? ((cb: IdleRequestCallback) => window.setTimeout(cb, 400));
-    const cancel = window.cancelIdleCallback ?? window.clearTimeout;
+    const cancelIdle = window.cancelIdleCallback ?? window.clearTimeout;
 
-    const handle = schedule(() => setReady(true));
-    return () => cancel(handle as number);
+    const load = () => {
+      if (settled) return;
+      settled = true;
+      idle = schedule(() => setReady(true)) as number;
+    };
+
+    /* Wait for LCP to be reported before even scheduling the load.
+       Idle time alone was not enough of a guard: the browser reports idle early,
+       the three.js chunk then evaluates on the main thread, and the paint it
+       delays is the one being measured. Observing LCP first makes it
+       structurally impossible for the shader to affect the metric rather than
+       merely unlikely. */
+    let observer: PerformanceObserver | undefined;
+
+    if (typeof PerformanceObserver !== "undefined") {
+      try {
+        observer = new PerformanceObserver(() => load());
+        observer.observe({ type: "largest-contentful-paint", buffered: true });
+      } catch {
+        // Unsupported entry type — fall through to the timeout below.
+      }
+    }
+
+    // LCP is not reported on a page the user never sees, and Safari support has
+    // been uneven, so a ceiling guarantees the effect still arrives.
+    const fallback = window.setTimeout(load, 2500);
+
+    return () => {
+      observer?.disconnect();
+      window.clearTimeout(fallback);
+      if (idle) cancelIdle(idle);
+    };
   }, [tier]);
 
   const particles = PARTICLES_BY_TIER[tier];

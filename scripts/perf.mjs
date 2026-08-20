@@ -30,7 +30,10 @@ const renderer = await page.evaluate(() => {
 });
 console.log(`renderer: ${renderer}\n`);
 
-await page.click('button[aria-expanded="false"]');
+// Scope to the HUD specifically: the mobile menu trigger also carries
+// aria-expanded and is display:none at desktop widths, so a bare
+// [aria-expanded] selector waits forever on a hidden element.
+await page.getByRole("button", { name: /render stats/i }).click();
 
 // Sample at each phase of the morph — drift is most expensive at progress 0,
 // where nothing is locked and the flow field is at full strength.

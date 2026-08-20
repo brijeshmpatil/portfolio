@@ -12,10 +12,14 @@
   --color-line: #1f2429;
   --color-line-strong: #2c333a;
 
-  /* Text */
+  /* Text.
+     `ink-faint` is used for 11px mono labels, so it has to clear 4.5:1 against
+     `void` — not the 3:1 that large text would allow. #5d666e read as
+     appropriately recessive but measured 3.49:1 and failed axe on every route;
+     this value measures ~4.8:1. Do not darken it back. */
   --color-ink: #edede9;
   --color-ink-muted: #9aa3ab;
-  --color-ink-faint: #5d666e;
+  --color-ink-faint: #767f88;
 
   /* Accent — phosphor amber. Instrument/HUD association, not the usual
      dev-portfolio lime or cyan. */
@@ -57,7 +61,7 @@
   }
 
   html {
-    /* ScrollSmoother drives scrolling; native smooth would fight it */
+    /* Native scrolling. GSAP ScrollSmoother is not used - see lib/gsap.ts */
     scroll-behavior: auto;
     -webkit-text-size-adjust: 100%;
   }
@@ -69,7 +73,12 @@
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-    overflow-x: clip;
+    /* Deliberately NO overflow-x here. `overflow-x: clip` makes body a clipping
+       container, which silently breaks `position: sticky` on descendants — the
+       hero panel scrolled away and the viewport went blank. It was also masking
+       the mobile nav overflowing rather than fixing it. Horizontal overflow is
+       instead prevented at source and asserted at every breakpoint by
+       scripts/qa.mjs. */
   }
 
   /* Selection picks up the accent so even trivial interactions feel authored */

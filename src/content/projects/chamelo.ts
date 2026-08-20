@@ -10,7 +10,7 @@ export const chamelo = defineProject({
   year: "2025",
   role: "Frontend engineer",
   liveStatus: "live",
-  url: "https://www.chamelo.com",
+  url: "https://chamelo.com",
   stack: ["Shopify Liquid", "TypeScript", "GSAP", "webpack 5", "Tailwind CSS"],
   metrics: [
     { value: "17 × 10", label: "frames × colourways", note: "the visual matrix behind the grid" },

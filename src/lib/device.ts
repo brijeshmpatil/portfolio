@@ -55,13 +55,23 @@ export function detectTier(): Tier {
   // Respect Data Saver — a shader is pure decoration.
   if (nav.connection?.saveData) return "off";
 
+  /* Touch devices get the static poster, not a reduced shader.
+     This was measured, not assumed. Shipping the three.js + R3F chunk to a
+     phone cost 2.2s of script evaluation and a 1.6s long task under Lighthouse's
+     mobile CPU throttling, which dragged LCP to 5.3s and mobile performance to
+     50. No particle count fixes that — the cost is parsing and evaluating the
+     library, before a single particle is drawn.
+     A decorative background is not worth four seconds of someone's phone, so on
+     mobile it simply does not load. That is the same trade this site argues for
+     everywhere else; it would be dishonest to make an exception for the one
+     effect that happens to be mine. */
+  if (window.matchMedia("(pointer: coarse)").matches) return "off";
+
   const cores = nav.hardwareConcurrency ?? 4;
   // `deviceMemory` is Chromium-only and reports GiB, clamped to 8.
   const memory = nav.deviceMemory ?? 4;
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
 
   if (cores <= 4 || memory <= 4) return "low";
-  if (coarse) return "medium";
   if (cores >= 8 && memory >= 8) return "high";
 
   return "medium";

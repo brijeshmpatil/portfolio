@@ -63,17 +63,27 @@ export function CaseStudyHeader({ project }: Props) {
         </div>
       </dl>
 
+      {/* dt precedes dd in the DOM and the note lives inside the dt, because a
+          dl group may not contain a bare paragraph. flex-col-reverse gives the
+          figure-above-label reading order visually. */}
       {project.metrics.length > 0 && (
         <dl className="mt-16 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {project.metrics.map((metric) => (
-            <div key={metric.label} className="border-t border-line pt-5">
+            <div
+              key={metric.label}
+              className="flex flex-col-reverse border-t border-line pt-5"
+            >
+              <dt className="mt-3 text-sm text-ink">
+                {metric.label}
+                {metric.note && (
+                  <span className="mt-1 block text-xs text-ink-faint">
+                    {metric.note}
+                  </span>
+                )}
+              </dt>
               <dd className="font-mono text-3xl text-signal tabular-nums">
                 {metric.value}
               </dd>
-              <dt className="mt-3 text-sm text-ink">{metric.label}</dt>
-              {metric.note && (
-                <p className="mt-1 text-xs text-ink-faint">{metric.note}</p>
-              )}
             </div>
           ))}
         </dl>

@@ -197,7 +197,7 @@ export const clientCards: readonly Project[] = [
     year: "2026",
     role: "Frontend engineer",
     liveStatus: "live",
-    url: "https://shoptrade.co",
+    url: "https://shoptrade.co.in",
     stack: ["Shopify Liquid", "TypeScript", "video.js", "Playwright"],
     metrics: [],
     summary:
