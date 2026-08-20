@@ -15,9 +15,18 @@ const GRID_CELLS = 11;
 
 type Props = {
   readonly count: number;
+  /**
+   * Drive the morph directly instead of from the hero scroll store. Used by the
+   * playground, where progress is a control rather than a consequence of
+   * scrolling.
+   */
+  readonly progress?: number;
+  /** World-space particle radius. Defaults to the hero's tuned value. */
+  readonly size?: number;
 };
 
-export function ParticleField({ count }: Props) {
+export function ParticleField({ count, progress, size = 0.028 }: Props) {
+  const controlled = progress !== undefined;
   const points = useRef<THREE.Points>(null);
   const material = useRef<THREE.ShaderMaterial>(null);
   const { viewport, invalidate } = useThree();
@@ -75,12 +84,16 @@ export function ParticleField({ count }: Props) {
   // only consumes the resulting progress — writing straight to the uniform
   // rather than through state, so a scroll frame costs no React render.
   useGSAP(() => {
-    const unsubscribe = onHeroProgress((progress) => {
-      const uniforms = material.current?.uniforms;
-      if (!uniforms) return;
-      uniforms.uProgress.value = progress;
-      invalidate();
-    });
+    // In controlled mode the parent owns progress; subscribing would let the
+    // hero's scroll position fight the playground's slider.
+    const unsubscribe = controlled
+      ? () => {}
+      : onHeroProgress((value) => {
+          const uniforms = material.current?.uniforms;
+          if (!uniforms) return;
+          uniforms.uProgress.value = value;
+          invalidate();
+        });
 
     // Pointer force eases in only once the cursor is actually over the page, so
     // the field is not permanently deformed by a cursor resting where it
@@ -108,7 +121,12 @@ export function ParticleField({ count }: Props) {
       window.removeEventListener("pointerover", onEnter);
       document.removeEventListener("pointerleave", onLeave);
     };
-  }, [invalidate]);
+  }, [invalidate, controlled]);
+
+  // Controlled progress and size are written in the frame loop rather than an
+  // effect: the loop already runs, and writing there keeps every uniform update
+  // on one code path.
+  const controlledProgress = progress ?? 0;
 
   /* eslint-disable react-hooks/immutability -- Writing to three.js uniforms
      every frame is the sanctioned R3F pattern and the entire point of an
@@ -121,6 +139,8 @@ export function ParticleField({ count }: Props) {
     if (!uniforms) return;
 
     uniforms.uTime.value = clock.elapsedTime;
+    uniforms.uSize.value = size;
+    if (controlled) uniforms.uProgress.value = controlledProgress;
 
     // Convert a world radius to framebuffer pixels: half the buffer height
     // divided by the tangent of the half field of view. Recomputed per frame
