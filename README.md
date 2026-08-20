@@ -9,8 +9,8 @@ Lighthouse, production build, real (`devtools`) throttling:
 
 | | Performance | Accessibility | Best practices | SEO | LCP | CLS | TBT |
 |---|---|---|---|---|---|---|---|
-| Mobile | 99 | 100 | 100 | 100 | 1.6s | 0 | 60ms |
-| Desktop | 100 | 100 | 100 | 100 | 0.1s | 0 | 0ms |
+| Mobile | 96 | 100 | 100 | 100 | 1.6s | 0 | 170ms |
+| Desktop | 99–100 | 100 | 100 | 100 | 0.1s | 0 | 30–80ms |
 
 The hero runs 110,000 GPU particles in a single draw call at a locked 60fps
 (17.5ms worst frame, vsync-capped) on an Apple M4. `/about` reports the page's
@@ -25,7 +25,11 @@ by scroll, blends between them. Nothing is recomputed per frame on the CPU and n
 geometry is rebuilt, which is why 110k particles cost one draw call.
 
 `/playground` exposes the same shader with `uProgress`, particle count and size
-as live controls.
+as live controls, alongside a **GPU fluid simulation** — a Navier–Stokes solver
+for incompressible flow you can paint into, running as nine full-screen shader
+passes per frame over half-float textures. Raw WebGL2, no library: it is a chain
+of framebuffers ping-ponging between each other, and a scene graph has nothing to
+contribute to that. 60fps at dpr 2 with zero dropped frames.
 
 ## Decisions worth knowing about
 
@@ -51,6 +55,15 @@ at the relevant place in the code.
 - **Fonts use `display: optional`, not `swap`.** On a throttled connection the
   swap landed at ~1.3s and the metric change moved the hero text 16px — 0.093 CLS.
   (`app/layout.tsx`)
+- **Link hovers are CSS, not GSAP.** A hover fires hundreds of times as a pointer
+  crosses a nav, and each GSAP tween would be main-thread work. `link-wipe` and
+  `link-swap` animate transform only, so the compositor owns them and they stay
+  smooth while the WebGL hero runs. (`app/link.css`)
+- **The hero morph holds on plateaus, but raw scroll is published too.** Mapping
+  progress linearly left the wordmark formed for ~250px of a 1980px runway; adding
+  plateaus fixed that but created a stretch where nothing moved and the page read
+  as frozen. The store publishes both, so the point cloud always has something to
+  respond to. (`lib/hero-progress.ts`)
 - **`body` has no `overflow-x`.** It makes body a clipping container, which breaks
   sticky descendants, and it was hiding a real mobile nav overflow rather than
   fixing it. (`app/globals.css`)
@@ -87,7 +100,7 @@ real hardware it halved the frame time.
 src/app/            routes — all static, case studies prerendered
 src/components/     webgl/ motion/ sections/ work/ case-study/ about/ ui/
 src/content/        typed project data, zod-validated at module load
-src/lib/            gsap registration, device tiering, particle targets, types
+src/lib/            gsap registration, device tiering, particle targets, fluid solver, types
 scripts/            QA and measurement tooling
 ```
 
