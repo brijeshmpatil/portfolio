@@ -1,126 +1,76 @@
 "use client";
 
-import { useRef } from "react";
-import { useGSAP } from "@gsap/react";
-import { HeroCanvas } from "@/components/webgl/HeroCanvas";
+import dynamic from "next/dynamic";
 import { HeroType } from "@/components/sections/HeroType";
-import { gsap, prefersReducedMotion } from "@/lib/gsap";
-import { mapHeroProgress, setHeroProgress } from "@/lib/hero-progress";
 import { SITE } from "@/lib/site";
 
 /**
  * Hero.
  *
- * Two things are load-bearing here.
+ * A fluid simulation seeded with the letterforms of BRIJESH, so the name blooms
+ * out of the ink and dissolves as the pointer pushes through it.
+ *
+ * Two things are load-bearing.
  *
  * First, order: the `<h1>` and its supporting copy are server-rendered HTML, so
  * the Largest Contentful Paint resolves against text in the first paint. The
- * WebGL canvas mounts afterwards, off the critical path, and can never become
- * the LCP element. That is what lets the page run an 80k-particle shader and
- * still score well.
+ * canvas mounts only after LCP has been reported, so it cannot become the LCP
+ * element or delay it.
  *
- * Second, the stick: the particle field morphs scatter → wordmark → grid, and
- * the visible panel stays put for the duration so the morph actually happens on
- * screen. Without that the wordmark resolves somewhere below the fold and nobody
- * ever sees it — which was exactly the first version's bug.
- *
- * The sticking is done with CSS `position: sticky` inside a tall section, NOT
- * with ScrollTrigger's `pin`. This is a CLS fix and it was measured: a pin is
- * created after hydration and inserts a pin-spacer, so 220vh of height appears
- * in the document *after* first paint and everything below it moves. That
- * measured 0.42 CLS on a throttled mobile profile. A CSS height and a sticky
- * child are in the server HTML, so the layout is final before any JavaScript
- * runs and there is nothing to shift. ScrollTrigger is left doing only what it
- * is good at here: reporting progress.
+ * Second, what is NOT here any more. The previous particle hero needed a 320svh
+ * scroll runway and a sticky panel to hold a scatter → wordmark → bars morph on
+ * screen, plus a plateau map so the wordmark stayed readable, plus a raw-scroll
+ * channel so the plateau did not read as the page freezing. The fluid is driven
+ * by the pointer rather than by scroll, so all of that machinery is gone and the
+ * hero is one ordinary screen tall. That is a real simplification, not just a
+ * swap: no sticky, no scroll store, no CLS risk from either.
  */
+const HeroFluid = dynamic(
+  () => import("@/components/webgl/HeroFluid").then((m) => m.HeroFluid),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(120% 80% at 50% 45%, #1c1a17 0%, #101315 48%, #08090a 100%)",
+        }}
+      />
+    ),
+  },
+);
+
 export function Hero() {
-  const section = useRef<HTMLElement>(null);
-  const textLayer = useRef<HTMLDivElement>(null);
-
-  useGSAP(
-    () => {
-      if (prefersReducedMotion()) return;
-
-      /* Scrubs across the section's own height — the sticky child provides the
-         hold, so no pin and no injected spacer.
-
-         scrub is 0.45, not 0.8. At 0.8 the visuals trail the scrollbar by up to
-         eight tenths of a second, which does not read as smoothing, it reads as
-         the page being broken. 0.45 still absorbs wheel-notch stepping without
-         feeling detached from the input. */
-      const timeline = gsap.timeline({
-        scrollTrigger: {
-          trigger: section.current,
-          start: "top top",
-          end: "bottom bottom",
-          scrub: 0.45,
-          invalidateOnRefresh: true,
-          onUpdate: (self) =>
-            setHeroProgress(mapHeroProgress(self.progress), self.progress),
-        },
-      });
-
-      /* The headline hands over to the wordmark: as the particles resolve into
-         "BRIJESH", the text lifts away. The two never compete.
-
-         The fade is timed to finish just before the wordmark's plateau begins at
-         0.34 of the runway — 0.28 of a total of 1, so it is complete and out of
-         the way rather than still going while the letterforms land. */
-      timeline
-        .to(
-          textLayer.current,
-          { yPercent: -14, opacity: 0, ease: "power2.in", duration: 0.28 },
-          0,
-        )
-        .to({}, { duration: 0.72 });
-
-      return () => {
-        timeline.scrollTrigger?.kill();
-        timeline.kill();
-        setHeroProgress(0, 0);
-      };
-    },
-    { scope: section },
-  );
-
   return (
-    /* The tall outer section is the scroll runway; the sticky child is what the
-       visitor sees. Under reduced motion both collapse to a single screen via
-       pure CSS, so there is no long empty scroll and still no layout change. */
-    <section
-      ref={section}
-      className="relative h-[320svh] motion-reduce:h-auto pointer-coarse:h-auto"
-    >
-      <div className="sticky top-0 flex h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-32 motion-reduce:static motion-reduce:h-auto motion-reduce:min-h-[100svh] pointer-coarse:static pointer-coarse:h-auto pointer-coarse:min-h-[100svh]">
-        {/* Layer 0 — deferred, decorative, non-blocking */}
-        <HeroCanvas />
+    <section className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-32">
+      {/* Layer 0 — deferred, decorative, non-blocking */}
+      <HeroFluid />
 
-        {/* Layer 1 — the LCP text, present in the server HTML */}
-        <div ref={textLayer} className="gutter relative z-10">
-          <p className="label">
-            {SITE.role} · {SITE.location}
+      {/* Layer 1 — the LCP text, present in the server HTML */}
+      <div className="gutter relative z-10">
+        <p className="label">
+          {SITE.role} · {SITE.location}
+        </p>
+
+        <HeroType />
+
+        <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <p className="max-w-xl text-lead text-ink-muted">
+            I build production React and TypeScript interfaces, then make them
+            fast. Currently SDE&nbsp;2 and technical lead at ShopTrade, where
+            I&nbsp;have shipped{" "}
+            <span className="text-ink">11 production applications</span> for
+            global brands across e-commerce, healthcare and B2B.
           </p>
 
-          <HeroType />
-
-          <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-            <p className="max-w-xl text-lead text-ink-muted">
-              I build production React and TypeScript interfaces, then make them
-              fast. Currently SDE&nbsp;2 and technical lead at ShopTrade, where
-              I&nbsp;have shipped{" "}
-              <span className="text-ink">11 production applications</span> for
-              global brands across e-commerce, healthcare and B2B.
-            </p>
-
-            {/* Hidden on touch, where there is no particle field to resolve and
-                the runway collapses to a single screen. Telling a phone user to
-                scroll for something that will not happen is worse than saying
-                nothing. */}
-            <p className="font-mono text-[0.625rem] leading-relaxed tracking-[0.14em] uppercase text-ink-faint md:text-right pointer-coarse:hidden motion-reduce:hidden">
-              Scroll to resolve
-              <span className="ml-2 inline-block h-px w-8 align-middle bg-line-strong" />
-            </p>
-          </div>
+          {/* Hidden where there is no simulation to disturb — touch devices and
+              reduced-motion both get the static poster. */}
+          <p className="font-mono text-[0.625rem] leading-relaxed tracking-[0.14em] uppercase text-ink-faint md:text-right pointer-coarse:hidden motion-reduce:hidden">
+            Move to disturb
+            <span className="ml-2 inline-block h-px w-8 align-middle bg-line-strong" />
+          </p>
         </div>
       </div>
     </section>

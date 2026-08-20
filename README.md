@@ -1,7 +1,7 @@
 # Portfolio — Brijesh M Patil
 
-Source for my portfolio. Next.js 16, React 19, TypeScript, Tailwind v4, GSAP and a
-WebGL hero. No CMS, no UI kit, one animation library.
+Source for my portfolio. Next.js 16, React 19, TypeScript, Tailwind v4, GSAP and
+two WebGL simulations. No CMS, no UI kit.
 
 ## Measured
 
@@ -12,24 +12,36 @@ Lighthouse, production build, real (`devtools`) throttling:
 | Mobile | 96 | 100 | 100 | 100 | 1.6s | 0 | 170ms |
 | Desktop | 99–100 | 100 | 100 | 100 | 0.1s | 0 | 30–80ms |
 
-The hero runs 110,000 GPU particles in a single draw call at a locked 60fps
-(17.5ms worst frame, vsync-capped) on an Apple M4. `/about` reports the page's
-own Core Web Vitals in your browser, so none of this has to be taken on trust.
+Locked 60fps with zero dropped frames at dpr 2 on an Apple M4, for both the hero
+and the playground. `/about` reports the page's own Core Web Vitals in your
+browser, so none of this has to be taken on trust.
 
-## The point of the hero
+## The hero
 
-Each particle carries three positions as vertex attributes — scattered, sampled
-from the rasterised letterforms of `BRIJESH`, and inside one of eleven bars, one
-per production application I have shipped. A single `uProgress` uniform, driven
-by scroll, blends between them. Nothing is recomputed per frame on the CPU and no
-geometry is rebuilt, which is why 110k particles cost one draw call.
+A Navier–Stokes solver for incompressible flow, seeded with the letterforms of
+`BRIJESH` so the name blooms out of the ink and then dissolves as the pointer
+pushes through it. Nine full-screen shader passes per frame over half-float
+textures — advect, add vorticity, compute divergence, solve pressure, subtract
+its gradient — in raw WebGL2. No library: it is a chain of framebuffers
+ping-ponging between each other, and a scene graph has nothing to contribute.
 
-`/playground` exposes the same shader with `uProgress`, particle count and size
-as live controls, alongside a **GPU fluid simulation** — a Navier–Stokes solver
-for incompressible flow you can paint into, running as nine full-screen shader
-passes per frame over half-float textures. Raw WebGL2, no library: it is a chain
-of framebuffers ping-ponging between each other, and a scene graph has nothing to
-contribute to that. 60fps at dpr 2 with zero dropped frames.
+Two details carry it:
+
+- **Vorticity confinement.** Numerical dissipation in the advection step quietly
+  eats small eddies. Measuring the surviving curl and pushing energy back into it
+  is the entire difference between ink in water and a blur.
+- **A two-phase seed.** A fluid solver's job is to *destroy* structure, so crisp
+  type becomes a beautiful illegible cloud within a second. The flow is held
+  almost still while the ink lands and resolves, then released. The name reads for
+  about two seconds and becomes the abstract field after that.
+
+Fullscreen is nearly free: the solver passes run at fixed 128² and 512² texture
+sizes regardless of viewport, so only the final display pass scales.
+
+`/playground` has the GPU particle field that used to be the hero — 110,000
+particles in one draw call, morphing between scattered, the letterforms of my
+name, and eleven bars, one per production application, with `uProgress` on a
+slider. Plus rigid-body typography on matter-js.
 
 ## Decisions worth knowing about
 
@@ -41,13 +53,20 @@ at the relevant place in the code.
   main thread, and the paint it delays is the one being measured. A
   `PerformanceObserver` on `largest-contentful-paint` makes it structurally
   impossible for the shader to affect the metric. (`components/webgl/HeroCanvas.tsx`)
-- **Touch devices get a static poster, not a smaller shader.** Shipping three.js
-  to a phone cost 2.2s of script evaluation and dragged mobile performance from 99
-  to 50. No particle count fixes that — the cost is parsing the library.
-  (`lib/device.ts`)
-- **Panels stick with CSS `position: sticky`, not ScrollTrigger's `pin`.** A pin
-  injects its spacer after hydration, so 220vh of height appears after first paint
-  and everything below it moves: 0.42 CLS. (`components/sections/Hero.tsx`)
+- **Touch devices get a static poster, not a smaller simulation.** Shipping a
+  WebGL2 chunk to a phone cost 2.2s of script evaluation and dragged mobile
+  performance from 99 to 50. Turning the quality down does not fix that — the cost
+  is parsing, before anything is drawn. (`lib/device.ts`, `components/webgl/HeroFluid.tsx`)
+- **Shader programs are linked without querying `LINK_STATUS`.**
+  `getProgramParameter(LINK_STATUS)` blocks until the driver has finished
+  compiling, so asking for it at mount serialises all nine programs onto the main
+  thread: 460ms of Total Blocking Time, desktop Lighthouse 100 → 79. All nine
+  links are started first and status is read only once
+  `KHR_parallel_shader_compile` reports completion. Back to 0ms.
+  (`lib/fluid/simulation.ts`)
+- **The work rail sticks with CSS `position: sticky`, not ScrollTrigger's `pin`.**
+  A pin injects its spacer after hydration, so height appears after first paint
+  and everything below it moves: 0.42 CLS. (`components/sections/WorkRail.tsx`)
 - **ScrollSmoother is not used.** It translates content inside a fixed wrapper, so
   the browser never scrolls and `position: sticky` silently does nothing. The
   choice was inertial smoothing versus a layout that never shifts.
@@ -59,11 +78,6 @@ at the relevant place in the code.
   crosses a nav, and each GSAP tween would be main-thread work. `link-wipe` and
   `link-swap` animate transform only, so the compositor owns them and they stay
   smooth while the WebGL hero runs. (`app/link.css`)
-- **The hero morph holds on plateaus, but raw scroll is published too.** Mapping
-  progress linearly left the wordmark formed for ~250px of a 1980px runway; adding
-  plateaus fixed that but created a stretch where nothing moved and the page read
-  as frozen. The store publishes both, so the point cloud always has something to
-  respond to. (`lib/hero-progress.ts`)
 - **`body` has no `overflow-x`.** It makes body a clipping container, which breaks
   sticky descendants, and it was hiding a real mobile nav overflow rather than
   fixing it. (`app/globals.css`)
@@ -100,7 +114,7 @@ real hardware it halved the frame time.
 src/app/            routes — all static, case studies prerendered
 src/components/     webgl/ motion/ sections/ work/ case-study/ about/ ui/
 src/content/        typed project data, zod-validated at module load
-src/lib/            gsap registration, device tiering, particle targets, fluid solver, types
+src/lib/            gsap registration, device tiering, fluid solver, text sampling, types
 scripts/            QA and measurement tooling
 ```
 

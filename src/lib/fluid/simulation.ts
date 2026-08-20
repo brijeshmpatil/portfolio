@@ -60,6 +60,9 @@ type Program = {
   uniforms: Record<string, WebGLUniformLocation | null>;
 };
 
+/** A program that has been linked but whose status has not been queried yet. */
+type PendingProgram = { program: WebGLProgram; shaders: WebGLShader[] };
+
 /** Simulation grid. Deliberately far below the dye grid: velocity is smooth. */
 const SIM_SIZE = 128;
 const DYE_SIZE = 512;
@@ -77,7 +80,17 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
   return shader;
 }
 
-function link(gl: WebGL2RenderingContext, fragment: string): Program {
+/**
+ * Starts a link WITHOUT querying its status.
+ *
+ * That distinction is the whole point. `getProgramParameter(LINK_STATUS)` blocks
+ * the calling thread until the driver has finished compiling, so asking for it
+ * here serialises all nine programs onto the main thread at mount — measured at
+ * 460ms of Total Blocking Time, which took desktop Lighthouse from 100 to 79.
+ * Linking is kicked off for every program first and the status is only read once
+ * the driver reports completion, via KHR_parallel_shader_compile.
+ */
+function startLink(gl: WebGL2RenderingContext, fragment: string): PendingProgram {
   const program = gl.createProgram();
   if (!program) throw new Error("Could not create program");
 
@@ -87,13 +100,19 @@ function link(gl: WebGL2RenderingContext, fragment: string): Program {
   gl.attachShader(program, fs);
   gl.linkProgram(program);
 
+  return { program, shaders: [vs, fs] };
+}
+
+/** Reads link status and resolves uniform locations. Blocks if not yet complete. */
+function finishLink(gl: WebGL2RenderingContext, pending: PendingProgram): Program {
+  const { program, shaders } = pending;
+
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     throw new Error(`Program link failed: ${gl.getProgramInfoLog(program)}`);
   }
 
   // Shaders can be deleted once linked; the program keeps what it needs.
-  gl.deleteShader(vs);
-  gl.deleteShader(fs);
+  for (const shader of shaders) gl.deleteShader(shader);
 
   const uniforms: Record<string, WebGLUniformLocation | null> = {};
   const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS) as number;
@@ -130,9 +149,13 @@ export function isFluidSupported(): boolean {
   return supported;
 }
 
+const COMPLETION_STATUS_KHR = 0x91b1;
+
 export class FluidSimulation {
   private readonly gl: WebGL2RenderingContext;
-  private readonly programs: Record<string, Program>;
+  private readonly pending: Record<string, PendingProgram>;
+  private readonly parallel: boolean;
+  private programs: Record<string, Program> | null = null;
 
   private velocity!: DoubleFbo;
   private dye!: DoubleFbo;
@@ -162,16 +185,20 @@ export class FluidSimulation {
     gl.getExtension("OES_texture_float_linear");
 
     this.gl = gl;
-    this.programs = {
-      splat: link(gl, SPLAT),
-      advection: link(gl, ADVECTION),
-      divergence: link(gl, DIVERGENCE),
-      curl: link(gl, CURL),
-      vorticity: link(gl, VORTICITY),
-      pressure: link(gl, PRESSURE),
-      gradient: link(gl, GRADIENT_SUBTRACT),
-      clear: link(gl, CLEAR),
-      display: link(gl, DISPLAY),
+    this.parallel = Boolean(gl.getExtension("KHR_parallel_shader_compile"));
+
+    // All nine links are started back-to-back and none is waited on, so the
+    // driver can compile them concurrently while the page carries on.
+    this.pending = {
+      splat: startLink(gl, SPLAT),
+      advection: startLink(gl, ADVECTION),
+      divergence: startLink(gl, DIVERGENCE),
+      curl: startLink(gl, CURL),
+      vorticity: startLink(gl, VORTICITY),
+      pressure: startLink(gl, PRESSURE),
+      gradient: startLink(gl, GRADIENT_SUBTRACT),
+      clear: startLink(gl, CLEAR),
+      display: startLink(gl, DISPLAY),
     };
 
     this.allocate();
@@ -246,6 +273,33 @@ export class FluidSimulation {
     if (program.uniforms[name]) gl.uniform1i(program.uniforms[name], unit);
   }
 
+  /**
+   * True once every program has finished linking.
+   *
+   * Without the extension this reports false exactly once and then blocks to
+   * finalise — the same total work as before, but moved off the mount and into a
+   * later frame, so it lands after first paint rather than during hydration.
+   */
+  get ready(): boolean {
+    if (this.programs) return true;
+
+    const gl = this.gl;
+    const entries = Object.entries(this.pending);
+
+    if (this.parallel) {
+      for (const [, pending] of entries) {
+        if (!gl.getProgramParameter(pending.program, COMPLETION_STATUS_KHR)) {
+          return false;
+        }
+      }
+    }
+
+    const finished: Record<string, Program> = {};
+    for (const [name, pending] of entries) finished[name] = finishLink(gl, pending);
+    this.programs = finished;
+    return true;
+  }
+
   setSettings(next: Partial<FluidSettings>): void {
     this.settings = { ...this.settings, ...next };
   }
@@ -256,8 +310,14 @@ export class FluidSimulation {
     this.gl.canvas.height = height;
   }
 
+  /** Current aspect ratio, so callers can lay out splats without distortion. */
+  get aspectRatio(): number {
+    return this.aspect;
+  }
+
   /** Injects velocity and colour. `x`/`y` are 0–1 with y up. */
   splat(x: number, y: number, dx: number, dy: number, color: [number, number, number]): void {
+    if (!this.ready || !this.programs) return;
     const gl = this.gl;
     const splat = this.programs.splat;
 
@@ -288,6 +348,10 @@ export class FluidSimulation {
 
   /** One simulation step plus the display pass. `dt` in seconds. */
   step(dt: number): void {
+    // Nothing can be drawn until the programs exist; callers just try again next
+    // frame rather than needing to know about compilation at all.
+    if (!this.ready || !this.programs) return;
+
     const gl = this.gl;
     const { velocity, dye, pressure, divergence, curl, settings } = this;
     const simTexel: [number, number] = [velocity.read.texelX, velocity.read.texelY];
@@ -365,7 +429,10 @@ export class FluidSimulation {
 
   dispose(): void {
     const gl = this.gl;
-    for (const p of Object.values(this.programs)) gl.deleteProgram(p.program);
+    const programs = this.programs
+      ? Object.values(this.programs).map((p) => p.program)
+      : Object.values(this.pending).map((p) => p.program);
+    for (const program of programs) gl.deleteProgram(program);
     for (const f of [
       this.velocity.read, this.velocity.write,
       this.dye.read, this.dye.write,

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { SectionHeading } from "@/components/motion/SectionHeading";
-import { FluidSection } from "@/components/playground/FluidSection";
+import { PhysicsSection } from "@/components/playground/PhysicsSection";
 import { ShaderLab } from "@/components/playground/ShaderLab";
 import { getProject } from "@/content/projects";
 
@@ -26,11 +26,11 @@ export default function PlaygroundPage() {
           The shader, with the lid off.
         </h1>
         <p className="mt-8 max-w-2xl text-lead text-ink-muted">
-          This is the same vertex program that runs the hero — the same three
-          target buffers, the same flow field. The difference is that here
+          A GPU particle field that morphs between three states — scattered,
+          the letterforms of my name, and eleven bars, one per production
+          application I have shipped. 110,000 particles, one draw call, and
           <code className="mx-1.5 font-mono text-sm text-signal">uProgress</code>
-          is a slider instead of a scroll position, so you can sit inside the
-          morph and see where it breaks.
+          on a slider so you can sit inside the morph and see where it breaks.
         </p>
       </header>
 
@@ -39,20 +39,21 @@ export default function PlaygroundPage() {
       </section>
 
       <section className="gutter mt-24">
-        <SectionHeading label="Fluid">
-          Ink you can push around.
+        <SectionHeading label="Rigid bodies">
+          Type you can throw.
         </SectionHeading>
 
         <p className="mt-6 max-w-2xl text-sm leading-relaxed text-ink-muted">
-          A Navier–Stokes solver for incompressible flow, running entirely on the
-          GPU as nine full-screen shader passes per frame over half-float
-          textures. Drag to inject velocity and colour. No library — raw WebGL2,
-          because this is a chain of framebuffers swapping between each other and
-          a scene graph has nothing to contribute to that.
+          The letters are rigid bodies. matter-js runs the physics and owns
+          positions and rotations; the drawing is hand-written canvas, because
+          matter&apos;s own renderer produces debug wireframes and has no concept
+          of a glyph. Bodies are rectangles rather than glyph outlines on purpose
+          — concave collision is expensive and unstable, and at this size nobody
+          can tell the R is colliding as a box.
         </p>
 
         <div className="mt-10">
-          <FluidSection />
+          <PhysicsSection />
         </div>
       </section>
 

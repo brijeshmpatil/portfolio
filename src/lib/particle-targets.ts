@@ -6,6 +6,8 @@
  * handed straight to WebGL; nothing is recomputed per frame.
  */
 
+import { sampleTextPoints, TEXT_ASPECT } from "@/lib/text-points";
+
 export type ParticleTargets = {
   readonly scatter: Float32Array;
   readonly word: Float32Array;
@@ -26,21 +28,19 @@ function makeRandom(seed: number): () => number {
 }
 
 /**
- * Rasterises text to an offscreen canvas and returns world-space positions for
- * pixels above an alpha threshold, resampled to exactly `count` points.
+ * World-space positions for the wordmark, from the shared text sampler.
+ *
+ * The sampler returns normalised 0–1 points with y up; this maps them into the
+ * particle field's world units and adds jitter so the wordmark reads as made of
+ * particles rather than as filled type.
  */
 function sampleText(text: string, count: number, width: number): Float32Array {
   const positions = new Float32Array(count * 3);
   const rand = makeRandom(0x5eed);
+  const points = sampleTextPoints(text, { count });
+  const height = width / TEXT_ASPECT;
 
-  const canvasWidth = 1024;
-  const canvasHeight = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) {
+  if (points.length === 0) {
     // Without a 2D context there is no wordmark to sample. Fall back to a
     // scattered slab so the morph still has somewhere to go.
     for (let i = 0; i < count; i += 1) {
@@ -51,41 +51,10 @@ function sampleText(text: string, count: number, width: number): Float32Array {
     return positions;
   }
 
-  ctx.fillStyle = "#fff";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  // System stack only — a webfont may not have loaded when this runs, and a
-  // fallback swap mid-sample would produce a garbled wordmark.
-  ctx.font = `700 ${canvasHeight * 0.72}px "Helvetica Neue", Arial, sans-serif`;
-  ctx.letterSpacing = "6px";
-  ctx.fillText(text, canvasWidth / 2, canvasHeight / 2);
-
-  const { data } = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
-
-  // Collect candidate pixels first, then resample — sampling randomly against
-  // the raw bitmap would clump toward wide glyphs.
-  const candidates: number[] = [];
-  for (let y = 0; y < canvasHeight; y += 2) {
-    for (let x = 0; x < canvasWidth; x += 2) {
-      if (data[(y * canvasWidth + x) * 4 + 3] > 128) {
-        candidates.push(x, y);
-      }
-    }
-  }
-
-  const pairCount = candidates.length / 2;
-  const height = (width * canvasHeight) / canvasWidth;
-
   for (let i = 0; i < count; i += 1) {
-    if (pairCount === 0) break;
-    const pick = Math.floor(rand() * pairCount) * 2;
-    const x = candidates[pick];
-    const y = candidates[pick + 1];
-
-    // Jitter hides the 2px sampling lattice and roughens the glyph edges, so
-    // the wordmark reads as made of particles rather than as filled type.
-    positions[i * 3] = (x / canvasWidth - 0.5) * width + (rand() - 0.5) * 0.045;
-    positions[i * 3 + 1] = -(y / canvasHeight - 0.5) * height + (rand() - 0.5) * 0.045;
+    const point = points[i % points.length];
+    positions[i * 3] = (point.x - 0.5) * width + (rand() - 0.5) * 0.045;
+    positions[i * 3 + 1] = (point.y - 0.5) * height + (rand() - 0.5) * 0.045;
     positions[i * 3 + 2] = (rand() - 0.5) * 0.18;
   }
 
