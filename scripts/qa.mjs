@@ -26,12 +26,16 @@ const ROUTES = [
   "/resume",
 ];
 
+/* `touch` matters, not just width. Device tiering keys off pointer coarseness,
+   so a 390px-wide window with a mouse still loads the WebGL hero while a real
+   phone gets the static poster. Capturing without touch emulation produces
+   screenshots of a state no phone ever renders. */
 const BREAKPOINTS = [
-  { name: "390", width: 390, height: 844 },
-  { name: "768", width: 768, height: 1024 },
-  { name: "1024", width: 1024, height: 768 },
-  { name: "1280", width: 1280, height: 900 },
-  { name: "1550", width: 1550, height: 900 },
+  { name: "390", width: 390, height: 844, touch: true },
+  { name: "768", width: 768, height: 1024, touch: true },
+  { name: "1024", width: 1024, height: 768, touch: false },
+  { name: "1280", width: 1280, height: 900, touch: false },
+  { name: "1550", width: 1550, height: 900, touch: false },
 ];
 
 await mkdir(OUT, { recursive: true });
@@ -99,6 +103,8 @@ console.log("\n── responsive captures ──\n");
 for (const bp of BREAKPOINTS) {
   const page = await browser.newPage({
     viewport: { width: bp.width, height: bp.height },
+    hasTouch: bp.touch,
+    isMobile: bp.touch,
   });
 
   for (const route of ROUTES) {

@@ -75,9 +75,9 @@ export function Hero() {
        pure CSS, so there is no long empty scroll and still no layout change. */
     <section
       ref={section}
-      className="relative h-[320svh] motion-reduce:h-auto"
+      className="relative h-[320svh] motion-reduce:h-auto pointer-coarse:h-auto"
     >
-      <div className="sticky top-0 flex h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-32 motion-reduce:static motion-reduce:h-auto motion-reduce:min-h-[100svh]">
+      <div className="sticky top-0 flex h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-32 motion-reduce:static motion-reduce:h-auto motion-reduce:min-h-[100svh] pointer-coarse:static pointer-coarse:h-auto pointer-coarse:min-h-[100svh]">
         {/* Layer 0 — deferred, decorative, non-blocking */}
         <HeroCanvas />
 
@@ -98,7 +98,11 @@ export function Hero() {
               global brands across e-commerce, healthcare and B2B.
             </p>
 
-            <p className="font-mono text-[0.625rem] leading-relaxed tracking-[0.14em] uppercase text-ink-faint md:text-right">
+            {/* Hidden on touch, where there is no particle field to resolve and
+                the runway collapses to a single screen. Telling a phone user to
+                scroll for something that will not happen is worse than saying
+                nothing. */}
+            <p className="font-mono text-[0.625rem] leading-relaxed tracking-[0.14em] uppercase text-ink-faint md:text-right pointer-coarse:hidden motion-reduce:hidden">
               Scroll to resolve
               <span className="ml-2 inline-block h-px w-8 align-middle bg-line-strong" />
             </p>
