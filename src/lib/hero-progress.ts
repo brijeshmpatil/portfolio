@@ -13,6 +13,47 @@
  *   2  grid
  */
 
+/**
+ * Maps raw scroll position (0 → 1) to morph progress (0 → 2).
+ *
+ * Deliberately not linear. Mapped linearly, `uProgress` passes through exactly
+ * 1.0 at a single scroll position, so the wordmark was fully formed for roughly
+ * 250px of a 1980px runway — about two wheel notches. It read as a glitch rather
+ * than a reveal, because you never actually saw it hold still.
+ *
+ * So each end state gets a plateau where progress does not advance at all, and
+ * the transitions between them are eased rather than linear. The result is
+ * assemble → hold → disperse → hold, which is a sequence rather than a swipe.
+ */
+const PHASES = [
+  { until: 0.34, from: 0, to: 1 }, // scatter assembles into the wordmark
+  { until: 0.56, from: 1, to: 1 }, // hold: the wordmark is readable here
+  { until: 0.86, from: 1, to: 2 }, // wordmark breaks into the bars
+  { until: 1.0, from: 2, to: 2 }, // hold: bars, handing off to the work rail
+] as const;
+
+/** Smooth acceleration and deceleration, so a plateau is entered and left softly. */
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - (1 - t) * (1 - t) * 2;
+}
+
+export function mapHeroProgress(scroll: number): number {
+  const t = Math.min(Math.max(scroll, 0), 1);
+
+  let start = 0;
+  for (const phase of PHASES) {
+    if (t <= phase.until) {
+      const span = phase.until - start;
+      // A plateau has from === to, so the eased local position is irrelevant.
+      const local = span > 0 ? (t - start) / span : 1;
+      return phase.from + (phase.to - phase.from) * easeInOut(local);
+    }
+    start = phase.until;
+  }
+
+  return 2;
+}
+
 type Listener = (progress: number) => void;
 
 let progress = 0;

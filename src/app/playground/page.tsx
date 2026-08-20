@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { SectionHeading } from "@/components/motion/SectionHeading";
+import { GameSection } from "@/components/playground/GameSection";
 import { ShaderLab } from "@/components/playground/ShaderLab";
 import { getProject } from "@/content/projects";
 
@@ -35,6 +36,26 @@ export default function PlaygroundPage() {
 
       <section className="gutter mt-16">
         <ShaderLab />
+      </section>
+
+      <section className="gutter mt-24">
+        <SectionHeading label="Ship It">
+          Eleven bricks, eleven production applications.
+        </SectionHeading>
+
+        <p className="mt-6 max-w-2xl text-sm leading-relaxed text-ink-muted">
+          A one-minute round. Written against{" "}
+          <code className="font-mono text-signal">requestAnimationFrame</code> with a
+          fixed-timestep accumulator and no animation library — a tween library
+          interpolates a property from A to B, and a game has no B, because the
+          next frame depends on collisions resolved in this one. The physics runs
+          in fixed logical units and the renderer scales, so it behaves the same
+          on a phone and a monitor, and at 60Hz and 144Hz.
+        </p>
+
+        <div className="mt-10">
+          <GameSection />
+        </div>
       </section>
 
       <section className="gutter mt-24">

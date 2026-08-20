@@ -3,7 +3,6 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
-import { Flip } from "gsap/Flip";
 
 /**
  * Single registration site for GSAP plugins.
@@ -12,8 +11,12 @@ import { Flip } from "gsap/Flip";
  * directly — that guarantees plugins are registered exactly once and keeps the
  * SSR guard in one place.
  *
- * GSAP has been free for all uses, including every plugin above, since
- * May 2025 (Webflow acquisition). No licence key is required.
+ * GSAP has been free for all uses, including every plugin, since May 2025
+ * (Webflow acquisition). No licence key is required.
+ *
+ * Flip is NOT registered here — it lives in lib/gsap-flip.ts. It is ~9.5KB
+ * gzipped and only /work uses it, so registering it globally made every other
+ * route pay for a plugin it never calls.
  *
  * ScrollSmoother is deliberately NOT used, and that decision cost some time to
  * reach. It works by translating the content inside a fixed wrapper, which means
@@ -33,7 +36,7 @@ let registered = false;
 
 function register(): void {
   if (registered || typeof window === "undefined") return;
-  gsap.registerPlugin(ScrollTrigger, SplitText, Flip);
+  gsap.registerPlugin(ScrollTrigger, SplitText);
 
   // Global defaults so individual timelines stay terse and consistent.
   gsap.defaults({ ease: "expo.out", duration: 0.9 });
@@ -54,4 +57,4 @@ export function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export { gsap, ScrollTrigger, SplitText, Flip };
+export { gsap, ScrollTrigger, SplitText };

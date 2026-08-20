@@ -42,8 +42,27 @@ export function Scene({ particles, dpr }: Props) {
     };
   }, []);
 
+  /* Fades up on mount instead of appearing instantly.
+     The canvas is deliberately mounted after LCP, so it arrives a beat into the
+     page — without a fade, 110k particles simply pop into existence, which looks
+     like a rendering fault rather than an entrance. A CSS transition costs
+     nothing and cannot affect the shader's frame budget. */
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
-    <div ref={wrapper} className="absolute inset-0" aria-hidden="true">
+    <div
+      ref={wrapper}
+      aria-hidden="true"
+      className={[
+        "absolute inset-0 transition-opacity duration-[1400ms] ease-out",
+        entered ? "opacity-100" : "opacity-0",
+      ].join(" ")}
+    >
       <Canvas
         dpr={dpr as [number, number]}
         frameloop={visible ? "always" : "never"}

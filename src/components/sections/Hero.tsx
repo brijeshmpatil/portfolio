@@ -5,7 +5,7 @@ import { useGSAP } from "@gsap/react";
 import { HeroCanvas } from "@/components/webgl/HeroCanvas";
 import { HeroType } from "@/components/sections/HeroType";
 import { gsap, prefersReducedMotion } from "@/lib/gsap";
-import { setHeroProgress } from "@/lib/hero-progress";
+import { mapHeroProgress, setHeroProgress } from "@/lib/hero-progress";
 import { SITE } from "@/lib/site";
 
 /**
@@ -41,24 +41,37 @@ export function Hero() {
     () => {
       if (prefersReducedMotion()) return;
 
-      // Scrubs across the section's own height — the sticky child provides the
-      // hold, so no pin and no injected spacer.
+      /* Scrubs across the section's own height — the sticky child provides the
+         hold, so no pin and no injected spacer.
+
+         scrub is 0.45, not 0.8. At 0.8 the visuals trail the scrollbar by up to
+         eight tenths of a second, which does not read as smoothing, it reads as
+         the page being broken. 0.45 still absorbs wheel-notch stepping without
+         feeling detached from the input. */
       const timeline = gsap.timeline({
         scrollTrigger: {
           trigger: section.current,
           start: "top top",
           end: "bottom bottom",
-          scrub: 0.8,
+          scrub: 0.45,
           invalidateOnRefresh: true,
-          onUpdate: (self) => setHeroProgress(self.progress * 2),
+          onUpdate: (self) => setHeroProgress(mapHeroProgress(self.progress)),
         },
       });
 
-      // The headline hands over to the wordmark: as the particles resolve into
-      // "BRIJESH", the text lifts away. The two never compete.
+      /* The headline hands over to the wordmark: as the particles resolve into
+         "BRIJESH", the text lifts away. The two never compete.
+
+         The fade is timed to finish just before the wordmark's plateau begins at
+         0.34 of the runway — 0.28 of a total of 1, so it is complete and out of
+         the way rather than still going while the letterforms land. */
       timeline
-        .to(textLayer.current, { yPercent: -16, opacity: 0, ease: "power2.in" }, 0)
-        .to({}, { duration: 1.6 });
+        .to(
+          textLayer.current,
+          { yPercent: -14, opacity: 0, ease: "power2.in", duration: 0.28 },
+          0,
+        )
+        .to({}, { duration: 0.72 });
 
       return () => {
         timeline.scrollTrigger?.kill();

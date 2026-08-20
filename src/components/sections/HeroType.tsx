@@ -19,6 +19,14 @@ export function HeroType() {
     () => {
       if (!root.current || prefersReducedMotion()) return;
 
+      /* Skip on touch. The hero is already static there — no canvas, no scroll
+         runway — so splitting the heading into masked lines buys a subtle reveal
+         at the cost of DOM surgery and a timeline during hydration, on exactly
+         the devices with the least CPU to spare. Total Blocking Time sits right
+         on the 200ms threshold on a throttled mobile profile, and this is the
+         cheapest thing to give up. */
+      if (window.matchMedia("(pointer: coarse)").matches) return;
+
       // SplitText's `mask` option wraps each line in an overflow-hidden parent,
       // which is what makes the lines rise out of nothing rather than fade.
       const split = SplitText.create(root.current, {

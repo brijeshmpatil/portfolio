@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
-import { Flip, gsap, prefersReducedMotion } from "@/lib/gsap";
+import { gsap, prefersReducedMotion } from "@/lib/gsap";
+import { Flip } from "@/lib/gsap-flip";
 import type { Project, Vertical } from "@/lib/types";
 import { ProjectCard } from "./ProjectCard";
 
