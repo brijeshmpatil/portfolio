@@ -75,10 +75,10 @@ float snoise(vec3 v) {
 export const PARTICLE_VERTEX = /* glsl */ `
 uniform float uTime;
 uniform float uProgress;      // 0 = scatter, 1 = wordmark, 2 = grid
-uniform float uSize;
+uniform float uSize;          // particle radius in world units
 uniform vec3  uPointer;       // world-space cursor, z unused
 uniform float uPointerForce;
-uniform float uAspect;
+uniform float uPointScale;    // drawingBufferHeight / (2 * tan(fov/2))
 
 attribute vec3  aScatter;
 attribute vec3  aWord;
@@ -90,59 +90,80 @@ varying float vHeat;          // 0 = drifting, 1 = locked into target
 
 ${SIMPLEX_3D}
 
-/* Curl of a 3D noise field — divergence-free, so particles swirl instead of
-   collapsing into sinks. Three noise samples per axis pair. */
-vec3 curl(vec3 p) {
-  const float e = 0.12;
-  float n1 = snoise(vec3(p.x, p.y + e, p.z));
-  float n2 = snoise(vec3(p.x, p.y - e, p.z));
-  float n3 = snoise(vec3(p.x, p.y, p.z + e));
-  float n4 = snoise(vec3(p.x, p.y, p.z - e));
-  float n5 = snoise(vec3(p.x + e, p.y, p.z));
-  float n6 = snoise(vec3(p.x - e, p.y, p.z));
+/* Flow field.
+   A true curl needs six noise samples per vertex; at 100k+ vertices that is
+   over half a million noise evaluations per frame and it dominated the frame
+   budget. Two decorrelated samples mapped through sin/cos give a field that is
+   smooth, swirling and visually indistinguishable here, at a third of the cost.
+   Divergence-free was never a requirement — it just has to look like drift. */
+vec3 flow(vec3 p) {
+  float a = snoise(p);
+  float b = snoise(p + vec3(19.3, 7.1, 31.7));
 
-  return normalize(vec3(
-    (n1 - n2) - (n3 - n4),
-    (n3 - n4) - (n5 - n6),
-    (n5 - n6) - (n1 - n2)
-  ));
+  return vec3(
+    sin(a * 3.14159),
+    cos(b * 3.14159),
+    sin((a + b) * 1.5708)
+  ) * 0.8;
 }
 
 void main() {
-  // Stagger each particle's arrival so the wordmark assembles rather than snaps.
-  float stagger = smoothstep(0.0, 1.0, clamp(uProgress - aRandom * 0.35, 0.0, 1.0));
-  float gridPhase = smoothstep(0.0, 1.0, clamp(uProgress - 1.0 - aRandom * 0.3, 0.0, 1.0));
+  /* Stagger each particle's arrival so the wordmark assembles rather than
+     snaps. The divisor matters: the per-particle offset is subtracted from
+     progress and the remainder renormalised, so every particle reaches a
+     stagger of exactly 1.0 by the time uProgress hits 1.0. An un-renormalised
+     version leaves the late particles permanently short of their target and the
+     letterforms never resolve. */
+  const float SPREAD = 0.3;
+  float stagger = smoothstep(
+    0.0, 1.0, clamp((uProgress - aRandom * SPREAD) / (1.0 - SPREAD), 0.0, 1.0)
+  );
+  float gridPhase = smoothstep(
+    0.0, 1.0, clamp((uProgress - 1.0 - aRandom * SPREAD) / (1.0 - SPREAD), 0.0, 1.0)
+  );
 
   vec3 pos = mix(aScatter, aWord, stagger);
   pos = mix(pos, aGrid, gridPhase);
 
-  // Flow strength decays as a particle locks onto its target, so the wordmark
-  // reads crisply while the scattered state stays alive.
+  /* Flow strength has to fall away to essentially nothing once a particle is
+     locked. The wordmark's letter strokes are only a few tenths of a world unit
+     across, so drift that stays even slightly active is wider than the stroke
+     and dissolves the letters into noise — squaring the falloff is what makes
+     the text legible. */
   float locked = max(stagger, gridPhase);
   vHeat = locked;
-  float flow = (1.0 - locked * 0.82);
+  float drag = (1.0 - locked) * (1.0 - locked);
 
-  vec3 drift = curl(pos * 0.28 + vec3(0.0, 0.0, uTime * 0.08));
-  pos += drift * flow * (0.55 + aRandom * 0.65);
+  vec3 drift = flow(pos * 0.28 + vec3(0.0, 0.0, uTime * 0.08));
+  pos += drift * drag * (0.55 + aRandom * 0.65);
 
   // Slow idle breathing so a still page is never completely static.
-  pos.y += sin(uTime * 0.5 + aRandom * 6.2831) * 0.06 * flow;
+  pos.y += sin(uTime * 0.5 + aRandom * 6.2831) * 0.06 * drag;
 
-  // Cursor repulsion in XY, falling off smoothly over a fixed world radius.
+  /* Cursor repulsion in XY, falling off smoothly over a fixed world radius.
+     Scaled down once locked so the pointer nudges the wordmark rather than
+     tearing it apart. */
   vec2 toPointer = pos.xy - uPointer.xy;
   float dist = length(toPointer);
   float influence = smoothstep(2.6, 0.0, dist) * uPointerForce;
-  pos.xy += normalize(toPointer + 1e-5) * influence * 1.15;
+  pos.xy += normalize(toPointer + 1e-5) * influence * mix(1.15, 0.35, locked);
 
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  // Perspective size attenuation, with locked particles rendering slightly
-  // brighter and tighter to sharpen the letterforms.
-  float sizeScale = mix(0.85, 1.35, locked) * (0.55 + aRandom * 0.9);
-  gl_PointSize = uSize * sizeScale * (1.0 / -mvPosition.z) * uAspect;
+  // Correct perspective size attenuation. uPointScale converts a world-space
+  // radius into framebuffer pixels at unit depth, so a particle keeps a stable
+  // apparent size across viewport sizes and device pixel ratios.
+  float sizeScale = mix(1.0, 0.72, locked) * (0.6 + aRandom * 0.8);
+  gl_PointSize = clamp(uSize * sizeScale * uPointScale / -mvPosition.z, 1.5, 18.0);
 
-  vAlpha = mix(0.28, 0.95, locked) * (0.5 + aRandom * 0.5);
+  /* Alpha falls as particles lock, which is counter-intuitive but necessary.
+     Locking packs 80k particles into the area of a few glyphs; under additive
+     blending that stacks well past 1.0, the red channel saturates first and the
+     amber turns into flat yellow poster paint. Lower per-particle alpha lets the
+     accumulation land on the intended colour and keeps the letterforms visibly
+     granular instead of solid. */
+  vAlpha = mix(0.55, 0.2, locked) * (0.6 + aRandom * 0.4);
 }
 `;
 

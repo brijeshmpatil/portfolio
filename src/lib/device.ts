@@ -9,6 +9,18 @@
 
 export type Tier = "off" | "low" | "medium" | "high";
 
+/**
+ * Counts tuned against measured frame time, not picked for the headline number.
+ *
+ * `high` is verified at a locked 60fps with a 17.7ms worst frame on an Apple M4
+ * across all three morph phases — vsync-capped rather than GPU-bound, so there
+ * is real headroom. Measure with `node scripts/perf.mjs`, which forces a real
+ * GPU: headless Chromium defaults to SwiftShader and its numbers are useless
+ * here.
+ *
+ * `low` and `medium` are conservative extrapolations and have NOT been verified
+ * on physical mid-range hardware. Check before trusting them.
+ */
 export const PARTICLES_BY_TIER: Readonly<Record<Tier, number>> = {
   off: 0,
   low: 18_000,

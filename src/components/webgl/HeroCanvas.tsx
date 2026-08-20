@@ -1,9 +1,22 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cappedDpr, detectTier, PARTICLES_BY_TIER, type Tier } from "@/lib/device";
 import { PerfHUD } from "./PerfHUD";
+
+/* Device capability never changes for the lifetime of the page, so there is
+   nothing to subscribe to — but it also cannot be read during SSR. Caching the
+   result keeps getSnapshot referentially stable, which useSyncExternalStore
+   requires; recomputing it per call would loop. */
+let cachedTier: Tier | null = null;
+
+const tierStore = {
+  subscribe: () => () => {},
+  getSnapshot: (): Tier => (cachedTier ??= detectTier()),
+  // The server has no device to inspect, so it renders the poster-only state.
+  getServerSnapshot: (): Tier => "off",
+};
 
 /**
  * Deferred mount boundary for the WebGL hero.
@@ -34,13 +47,16 @@ function Poster() {
 }
 
 export function HeroCanvas() {
-  const [tier, setTier] = useState<Tier | null>(null);
+  const tier = useSyncExternalStore(
+    tierStore.subscribe,
+    tierStore.getSnapshot,
+    tierStore.getServerSnapshot,
+  );
+
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const detected = detectTier();
-    setTier(detected);
-    if (detected === "off") return;
+    if (tier === "off") return;
 
     // requestIdleCallback is not in Safari; a timeout is a fine substitute
     // because either way we are explicitly yielding past first paint.
@@ -50,10 +66,10 @@ export function HeroCanvas() {
 
     const handle = schedule(() => setReady(true));
     return () => cancel(handle as number);
-  }, []);
+  }, [tier]);
 
-  const particles = tier ? PARTICLES_BY_TIER[tier] : 0;
-  const active = tier !== null && tier !== "off" && ready;
+  const particles = PARTICLES_BY_TIER[tier];
+  const active = tier !== "off" && ready;
 
   return (
     <div className="absolute inset-0">

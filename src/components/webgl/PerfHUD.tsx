@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Tier } from "@/lib/device";
+import { onHeroProgress } from "@/lib/hero-progress";
 
 type Props = {
   readonly particles: number;
@@ -25,9 +26,27 @@ export function PerfHUD({ particles, tier }: Props) {
   const [open, setOpen] = useState(false);
   const [sample, setSample] = useState<Sample>({ fps: 0, frameMs: 0 });
 
+  const [morph, setMorph] = useState(0);
+
   const frames = useRef(0);
   const worst = useRef(0);
   const last = useRef(0);
+
+  // Morph progress is read from the same store the shader uses, so the HUD
+  // reports the real uniform rather than a second estimate of it.
+  useEffect(() => {
+    if (!open) return;
+    let queued = 0;
+    return onHeroProgress((value) => {
+      // Throttle to animation frames; scroll fires far more often than this
+      // needs to update.
+      if (queued) return;
+      queued = requestAnimationFrame(() => {
+        setMorph(value);
+        queued = 0;
+      });
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -64,6 +83,7 @@ export function PerfHUD({ particles, tier }: Props) {
     ["worst frame", `${sample.frameMs}ms`],
     ["particles", particles.toLocaleString("en-US")],
     ["draw calls", "1"],
+    ["morph", morph.toFixed(2)],
     ["tier", tier],
   ];
 

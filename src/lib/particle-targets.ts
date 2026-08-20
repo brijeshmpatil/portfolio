@@ -82,39 +82,43 @@ function sampleText(text: string, count: number, width: number): Float32Array {
     const x = candidates[pick];
     const y = candidates[pick + 1];
 
-    // Sub-pixel jitter hides the 2px sampling lattice.
-    positions[i * 3] = (x / canvasWidth - 0.5) * width + (rand() - 0.5) * 0.02;
-    positions[i * 3 + 1] = -(y / canvasHeight - 0.5) * height + (rand() - 0.5) * 0.02;
-    positions[i * 3 + 2] = (rand() - 0.5) * 0.12;
+    // Jitter hides the 2px sampling lattice and roughens the glyph edges, so
+    // the wordmark reads as made of particles rather than as filled type.
+    positions[i * 3] = (x / canvasWidth - 0.5) * width + (rand() - 0.5) * 0.045;
+    positions[i * 3 + 1] = -(y / canvasHeight - 0.5) * height + (rand() - 0.5) * 0.045;
+    positions[i * 3 + 2] = (rand() - 0.5) * 0.18;
   }
 
   return positions;
 }
 
 /**
- * `cells` evenly spaced blocks — one per shipped production application. The
- * grid is the visual handoff from the hero into the work rail below it.
+ * `cells` evenly spaced vertical bars in a single centred row — one per shipped
+ * production application.
+ *
+ * A row rather than a grid, for two reasons: eleven does not factor into a
+ * balanced grid (5/5/1 reads as a mistake, not a choice), and a horizontal row
+ * is the visual handoff into the horizontally-scrolling work rail directly
+ * below it.
  */
-function buildGrid(count: number, cells: number, width: number): Float32Array {
+function buildBars(count: number, cells: number, width: number): Float32Array {
   const positions = new Float32Array(count * 3);
   const rand = makeRandom(0xc0ffee);
 
-  const columns = Math.ceil(Math.sqrt(cells * 2));
-  const rows = Math.ceil(cells / columns);
-  const cellW = width / columns;
-  const cellH = cellW * 0.62;
+  // Inset from the full width so the outer bars are not clipped by the frame —
+  // the wordmark can bleed off the edges, a countable row of bars cannot.
+  const span = width * 0.86;
+  const pitch = span / cells;
+  const barW = pitch * 0.52;
+  const barH = width * 0.26;
   const perCell = Math.ceil(count / cells);
 
   for (let i = 0; i < count; i += 1) {
     const cell = Math.min(Math.floor(i / perCell), cells - 1);
-    const col = cell % columns;
-    const row = Math.floor(cell / columns);
+    const originX = (cell - (cells - 1) / 2) * pitch;
 
-    const originX = (col - (columns - 1) / 2) * cellW;
-    const originY = ((rows - 1) / 2 - row) * cellH;
-
-    positions[i * 3] = originX + (rand() - 0.5) * cellW * 0.78;
-    positions[i * 3 + 1] = originY + (rand() - 0.5) * cellH * 0.7;
+    positions[i * 3] = originX + (rand() - 0.5) * barW;
+    positions[i * 3 + 1] = (rand() - 0.5) * barH;
     positions[i * 3 + 2] = (rand() - 0.5) * 0.3;
   }
 
@@ -127,9 +131,14 @@ function buildScatter(count: number, width: number): Float32Array {
   const rand = makeRandom(0xbeef);
 
   for (let i = 0; i < count; i += 1) {
-    positions[i * 3] = (rand() - 0.5) * width * 1.35;
-    positions[i * 3 + 1] = (rand() - 0.5) * width * 0.42;
-    positions[i * 3 + 2] = (rand() - 0.5) * 4;
+    // Slightly wider than the frame so the field has no visible edge, but not
+    // so wide that a large share of the particle budget is spent off-screen.
+    positions[i * 3] = (rand() - 0.5) * width * 1.15;
+    // Biased toward the vertical centre — a uniform spread reads as an even
+    // grey wash, whereas a denser core reads as a cloud.
+    const v = rand() + rand() - 1;
+    positions[i * 3 + 1] = v * width * 0.3;
+    positions[i * 3 + 2] = (rand() - 0.5) * 3;
   }
 
   return positions;
@@ -148,7 +157,7 @@ export function buildParticleTargets(
   return {
     scatter: buildScatter(count, width),
     word: sampleText(wordmark, count, width),
-    grid: buildGrid(count, cells, width),
+    grid: buildBars(count, cells, width),
     random,
   };
 }
