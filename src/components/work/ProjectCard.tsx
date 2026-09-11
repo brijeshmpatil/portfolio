@@ -31,17 +31,22 @@ export function ProjectCard({ project, fixedWidth = false }: Props) {
 
   const body = (
     <>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="label">{project.vertical}</p>
-          <h3 className="mt-3 text-2xl text-ink transition-colors group-hover:text-signal md:text-3xl">
-            {project.name}
-          </h3>
-        </div>
+      {/* Vertical and year share one row so the title below gets the full card
+          width. Sitting the year beside the title instead cost it ~100px and
+          wrapped names like "StorkPump by AdaptHealth" onto a second line while
+          shorter ones stayed on one — the rail then read as ragged. */}
+      <div className="flex items-baseline justify-between gap-4">
+        <p className="label">{project.vertical}</p>
         <span className="shrink-0 font-mono text-[0.625rem] tracking-[0.14em] text-ink-faint">
           {project.year}
         </span>
       </div>
+
+      {/* 22px below 390px: the rail card is 85vw there, which leaves 271px of
+          line — 10px short of the longest project name at 24px. */}
+      <h3 className="mt-3 text-[1.375rem] text-ink transition-colors group-hover:text-signal sm:text-2xl md:text-3xl">
+        {project.name}
+      </h3>
 
       <p className="mt-4 font-serif text-lg italic text-ink-muted">
         {project.tagline}

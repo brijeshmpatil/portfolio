@@ -40,7 +40,10 @@ export function CaseStudyHeader({ project }: Props) {
           </div>
         ))}
 
-        <div>
+        {/* A hostname is the longest value in this list and the only one that
+            cannot be broken nicely, so it gets the full row in the two-column
+            layout rather than a 159px cell. */}
+        <div className="sm:col-span-2 lg:col-span-1">
           <dt className="label">Live</dt>
           <dd className="mt-2 text-sm">
             {project.url ? (
@@ -48,9 +51,15 @@ export function CaseStudyHeader({ project }: Props) {
                 href={project.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="group inline-flex items-center gap-1.5 text-ink underline decoration-signal decoration-1 underline-offset-4 transition-colors hover:text-signal"
+                className="group inline-flex max-w-full items-center gap-1.5 text-ink underline decoration-signal decoration-1 underline-offset-4 transition-colors hover:text-signal"
               >
-                {new URL(project.url).hostname.replace(/^www\./, "")}
+                {/* A hostname is one unbreakable token. `sm` is 390px here, so
+                    an iPhone-width screen gets the two-column grid and a 159px
+                    cell — adapthealthmarketplace.com needs 195px and was pushing
+                    the whole document 17px wider than the viewport. */}
+                <span className="break-all">
+                  {new URL(project.url).hostname.replace(/^www\./, "")}
+                </span>
                 <ArrowUpRight
                   aria-hidden="true"
                   className="size-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
@@ -81,7 +90,12 @@ export function CaseStudyHeader({ project }: Props) {
                   </span>
                 )}
               </dt>
-              <dd className="font-mono text-3xl text-signal tabular-nums">
+              {/* Not every metric value is a number — "resumable",
+                  "server-side" and "in-checkout" all appear here, and at 30px
+                  they are wider than the 159px cell the two-column grid gives
+                  them on a 390px screen. Full size returns with the three-column
+                  layout at lg, where there is room for it. */}
+              <dd className="font-mono text-2xl break-words text-signal tabular-nums lg:text-3xl">
                 {metric.value}
               </dd>
             </div>

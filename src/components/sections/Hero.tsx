@@ -44,7 +44,13 @@ const HeroFluid = dynamic(
 
 export function Hero() {
   return (
-    <section className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-32">
+    /* Bottom-anchored content only works where the fluid fills the space above
+       it. HeroFluid refuses to mount on a coarse pointer, so on phones and
+       tablets `justify-end` left ~480px of flat black above the h1 — 59% of the
+       first screen saying nothing. The override keys off the same signal the
+       canvas does rather than a width, so it applies exactly where the poster
+       is what the visitor gets. Pointer-fine layout is unchanged. */
+    <section className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-16 pt-32 pointer-coarse:min-h-[86svh] pointer-coarse:justify-center pointer-coarse:pt-28">
       {/* Layer 0 — deferred, decorative, non-blocking */}
       <HeroFluid />
 

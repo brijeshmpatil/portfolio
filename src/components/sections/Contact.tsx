@@ -10,10 +10,18 @@ export function Contact() {
           Looking for a senior frontend role where performance is a requirement, not a retro item.
         </SectionHeading>
 
-        <div className="mt-12 flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
+        {/* Stacked until xl. Sharing a row with the socials from md left the
+            address ~500px to render in and it ran past the gutter. */}
+        <div className="mt-12 flex flex-col gap-10 xl:flex-row xl:items-end xl:justify-between">
+          {/* The address is one unbreakable 25-character string, so it cannot use
+              the shared display scale — that clamp bottoms out at 40px, which
+              needs 382px of line and had it overflowing the document by 27px on
+              every phone. This clamp is sized from the string itself: it fits
+              the gutter from 320px up, and still caps at the same 96px the
+              display scale reaches on desktop. */}
           <MagneticLink
             href={`mailto:${SITE.email}`}
-            className="inline-block font-serif text-display lowercase leading-none text-ink transition-colors hover:text-signal"
+            className="inline-block max-w-full font-serif text-[clamp(1.75rem,8.4vw,6rem)] lowercase leading-none text-ink transition-colors hover:text-signal"
           >
             {SITE.email}
           </MagneticLink>
