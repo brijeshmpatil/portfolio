@@ -9,8 +9,8 @@ export const SITE = {
   role: "Frontend Engineer",
   headline: "Frontend engineer, performance obsessed",
   location: "Bengaluru, India",
-  email: "brijeshmpatil77@gmail.com",
-  phone: "+91 7815840654",
+  email: "brijeshmpatil007@gmail.com",
+  phone: "+91 9019303664",
   url: "https://ravers-portfolio.vercel.app",
   description:
     "Frontend engineer with 3+ years shipping production React and TypeScript. SDE 2 and technical lead at ShopTrade — 11+ production applications for global brands, LCP down 40%, CLS under 0.01, a 50+ primitive typed design system.",
